@@ -3,36 +3,11 @@
 from migen import *
 
 from litex.build.generic_platform import *
-from litex.build.xilinx import XilinxPlatform
-
-# IOs ----------------------------------------------------------------------------------------------
-
-_io = [
-    ("user_led",  0, Pins("H17"), IOStandard("LVCMOS33")),
-
-    ("user_sw",  0, Pins("J15"), IOStandard("LVCMOS33")),
-
-    ("user_btn", 0, Pins("N17"), IOStandard("LVCMOS33")),
-
-    ("clk100", 0, Pins("E3"), IOStandard("LVCMOS33")),
-
-    ("cpu_reset", 0, Pins("C12"), IOStandard("LVCMOS33")),
-]
-
-# Platform -----------------------------------------------------------------------------------------
-
-class Platform(XilinxPlatform):
-    default_clk_name   = "clk100"
-    default_clk_period = 1e9/100e6
-
-    def __init__(self):
-        XilinxPlatform.__init__(self, "xc7a100t-csg324-1", _io, toolchain="vivado")
-
-# Design -------------------------------------------------------------------------------------------
+from litex_boards.platforms import colorlight_i5
 
 # Create our platform (fpga interface)
-platform = Platform()
-led = platform.request("user_led")
+platform = colorlight_i5.Platform("i9", "7.2")
+led = platform.request("user_led_n", 0)
 
 # Create our module (fpga description)
 module = Module()
@@ -45,3 +20,6 @@ module.sync += counter.eq(counter + 1)
 # Build --------------------------------------------------------------------------------------------
 
 platform.build(module)
+
+prog = platform.create_programmer()
+prog.load_bitstream("build/top.bit")
