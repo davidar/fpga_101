@@ -19,10 +19,12 @@ from litex.soc.cores.video import video_timings, video_data_layout, video_timing
 
 class ColorBarsPattern(LiteXModule):
     """Color Bars Pattern"""
-    def __init__(self, counter):
+    def __init__(self, video_timing, counter):
         self.enable   = Signal(reset=1)
         self.vtg_sink = vtg_sink   = stream.Endpoint(video_timing_layout)
         self.source   = source = stream.Endpoint(video_data_layout)
+
+        hres = video_timings[video_timing]["h_active"]
 
         # # #
 
@@ -30,16 +32,16 @@ class ColorBarsPattern(LiteXModule):
         self.specials += MultiReg(self.enable, enable)
 
         # Control Path.
-        pix = Signal(hbits)
-        bar = Signal(3)
+        pix_x = Signal(hbits)
+        bar_x = Signal(3)
 
         fsm = FSM(reset_state="IDLE")
         fsm = ResetInserter()(fsm)
         self.fsm = fsm
         self.comb += fsm.reset.eq(~self.enable)
         fsm.act("IDLE",
-            NextValue(pix, 0),
-            NextValue(bar, 0),
+            NextValue(pix_x, 0),
+            NextValue(bar_x, 0),
             vtg_sink.ready.eq(1),
             If(vtg_sink.valid & vtg_sink.first & (vtg_sink.hcount == 0) & (vtg_sink.vcount == 0),
                 vtg_sink.ready.eq(0),
@@ -49,21 +51,23 @@ class ColorBarsPattern(LiteXModule):
         fsm.act("RUN",
             vtg_sink.connect(source, keep={"valid", "ready", "last", "de", "hsync", "vsync"}),
             If(source.valid & source.ready & source.de,
-                NextValue(pix, pix + 1),
-                If(pix == (vtg_sink.hres[3:] -1), # 8 Color Bars.
-                    NextValue(pix, 0),
-                    NextValue(bar, bar + 1)
+                NextValue(pix_x, pix_x + 1),
+                If(pix_x == int(hres/7) - 1, # 7 Color Bars.
+                    NextValue(pix_x, 0),
+                    NextValue(bar_x, bar_x + 1)
                 )
             ).Else(
-                NextValue(pix, 0),
-                NextValue(bar, 0)
+                NextValue(pix_x, 0),
+                NextValue(bar_x, 0)
             )
         )
+
+        t = counter[17:25]
 
         # Data Path.
         color_bar = [
             # R     G     B
-            [0xff * counter[25], 0xff * counter[25], 0xff * counter[25]], # White
+            [t, t, t], # White
             [0xff, 0xff, 0x00], # Yellow
             [0x00, 0xff, 0xff], # Cyan
             [0x00, 0xff, 0x00], # Green
@@ -79,7 +83,7 @@ class ColorBarsPattern(LiteXModule):
                 source.g.eq(color_bar[i][1]),
                 source.b.eq(color_bar[i][2])
             ]
-        self.comb += Case(bar, cases)
+        self.comb += Case(bar_x, cases)
 
 class BaseSoC(SoCCore):
     def __init__(self):
@@ -107,7 +111,7 @@ class BaseSoC(SoCCore):
         self.add_module("video_colorbars_vtg", video_colorbars_vtg)
 
         # ColorsBars Pattern.
-        video_colorbars = ColorBarsPattern(counter)
+        video_colorbars = ColorBarsPattern(video_timing, counter)
         video_colorbars = ClockDomainsRenamer("hdmi")(video_colorbars)
         self.add_module("video_colorbars", video_colorbars)
 
