@@ -19,7 +19,7 @@ from litex.soc.cores.video import video_timings, video_data_layout, video_timing
 
 class ColorBarsPattern(LiteXModule):
     """Color Bars Pattern"""
-    def __init__(self):
+    def __init__(self, counter):
         self.enable   = Signal(reset=1)
         self.vtg_sink = vtg_sink   = stream.Endpoint(video_timing_layout)
         self.source   = source = stream.Endpoint(video_data_layout)
@@ -63,7 +63,7 @@ class ColorBarsPattern(LiteXModule):
         # Data Path.
         color_bar = [
             # R     G     B
-            [0xff, 0xff, 0xff], # White
+            [0xff * counter[25], 0xff * counter[25], 0xff * counter[25]], # White
             [0xff, 0xff, 0x00], # Yellow
             [0x00, 0xff, 0xff], # Cyan
             [0x00, 0xff, 0x00], # Green
@@ -87,6 +87,11 @@ class BaseSoC(SoCCore):
         video_timing = "800x600@60Hz"
         sys_clk_freq = 60e6
 
+        led = platform.request("user_led_n", 0)
+        counter = Signal(26)
+        self.comb += led.eq(counter[25])
+        self.sync += counter.eq(counter + 1)
+
         self.crg = _CRG(platform, sys_clk_freq,
             with_video_pll   = True,
             pix_clk          = video_timings[video_timing]["pix_clk"]
@@ -102,7 +107,7 @@ class BaseSoC(SoCCore):
         self.add_module("video_colorbars_vtg", video_colorbars_vtg)
 
         # ColorsBars Pattern.
-        video_colorbars = ColorBarsPattern()
+        video_colorbars = ColorBarsPattern(counter)
         video_colorbars = ClockDomainsRenamer("hdmi")(video_colorbars)
         self.add_module("video_colorbars", video_colorbars)
 
