@@ -19,15 +19,17 @@ from litex.soc.cores.video import video_timings, video_data_layout, video_timing
 
 class ColorBarsPattern(LiteXModule):
     """Color Bars Pattern"""
-    def __init__(self, video_timing, counter):
+    def __init__(self):
         self.enable   = Signal(reset=1)
         self.vtg_sink = vtg_sink   = stream.Endpoint(video_timing_layout)
         self.source   = source = stream.Endpoint(video_data_layout)
 
-        hres = video_timings[video_timing]["h_active"]
-        vres = video_timings[video_timing]["v_active"]
+        # hres = video_timings[video_timing]["h_active"]
+        # vres = video_timings[video_timing]["v_active"]
 
         # # #
+
+        fcount = Signal(8)
 
         enable = Signal()
         self.specials += MultiReg(self.enable, enable)
@@ -37,6 +39,7 @@ class ColorBarsPattern(LiteXModule):
         self.fsm = fsm
         self.comb += fsm.reset.eq(~self.enable)
         fsm.act("IDLE",
+            NextValue(fcount, 0),
             vtg_sink.ready.eq(1),
             If(vtg_sink.valid & vtg_sink.first & (vtg_sink.hcount == 0) & (vtg_sink.vcount == 0),
                 vtg_sink.ready.eq(0),
@@ -45,13 +48,16 @@ class ColorBarsPattern(LiteXModule):
         )
         fsm.act("RUN",
             vtg_sink.connect(source, keep={"valid", "ready", "last", "de", "hsync", "vsync"}),
+            If(vtg_sink.ready & (vtg_sink.hcount == 0) & (vtg_sink.vcount == 0),
+                NextValue(fcount, fcount + 1),
+            ),
         )
 
         # Data Path.
         self.comb += [
-            source.r.eq(vtg_sink.hcount[:8]),
-            source.g.eq(vtg_sink.vcount[:8]),
-            source.b.eq(counter[20:28]),
+            source.r.eq(fcount + vtg_sink.hcount[3:11]),
+            source.g.eq(fcount + vtg_sink.vcount[3:11] + 160),
+            source.b.eq(fcount + vtg_sink.hcount[3:11] + 320),
         ]
 
 class BaseSoC(SoCCore):
@@ -61,7 +67,7 @@ class BaseSoC(SoCCore):
         sys_clk_freq = 60e6
 
         led = platform.request("user_led_n", 0)
-        counter = Signal(29)
+        counter = Signal(26)
         self.comb += led.eq(counter[25])
         self.sync += counter.eq(counter + 1)
 
@@ -80,7 +86,7 @@ class BaseSoC(SoCCore):
         self.add_module("video_colorbars_vtg", video_colorbars_vtg)
 
         # ColorsBars Pattern.
-        video_colorbars = ColorBarsPattern(video_timing, counter)
+        video_colorbars = ColorBarsPattern()
         video_colorbars = ClockDomainsRenamer("hdmi")(video_colorbars)
         self.add_module("video_colorbars", video_colorbars)
 
