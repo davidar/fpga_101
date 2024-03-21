@@ -25,23 +25,18 @@ class ColorBarsPattern(LiteXModule):
         self.source   = source = stream.Endpoint(video_data_layout)
 
         hres = video_timings[video_timing]["h_active"]
+        vres = video_timings[video_timing]["v_active"]
 
         # # #
 
         enable = Signal()
         self.specials += MultiReg(self.enable, enable)
 
-        # Control Path.
-        pix_x = Signal(hbits)
-        bar_x = Signal(3)
-
         fsm = FSM(reset_state="IDLE")
         fsm = ResetInserter()(fsm)
         self.fsm = fsm
         self.comb += fsm.reset.eq(~self.enable)
         fsm.act("IDLE",
-            NextValue(pix_x, 0),
-            NextValue(bar_x, 0),
             vtg_sink.ready.eq(1),
             If(vtg_sink.valid & vtg_sink.first & (vtg_sink.hcount == 0) & (vtg_sink.vcount == 0),
                 vtg_sink.ready.eq(0),
@@ -50,40 +45,14 @@ class ColorBarsPattern(LiteXModule):
         )
         fsm.act("RUN",
             vtg_sink.connect(source, keep={"valid", "ready", "last", "de", "hsync", "vsync"}),
-            If(source.valid & source.ready & source.de,
-                NextValue(pix_x, pix_x + 1),
-                If(pix_x == int(hres/7) - 1, # 7 Color Bars.
-                    NextValue(pix_x, 0),
-                    NextValue(bar_x, bar_x + 1)
-                )
-            ).Else(
-                NextValue(pix_x, 0),
-                NextValue(bar_x, 0)
-            )
         )
 
-        t = counter[17:25]
-
         # Data Path.
-        color_bar = [
-            # R     G     B
-            [t, t, t], # White
-            [0xff, 0xff, 0x00], # Yellow
-            [0x00, 0xff, 0xff], # Cyan
-            [0x00, 0xff, 0x00], # Green
-            [0xff, 0x00, 0xff], # Purple
-            [0xff, 0x00, 0x00], # Red
-            [0x00, 0x00, 0xff], # Blue
-            [0x00, 0x00, 0x00], # Black
+        self.comb += [
+            source.r.eq(vtg_sink.hcount[:8]),
+            source.g.eq(vtg_sink.vcount[:8]),
+            source.b.eq(counter[20:28]),
         ]
-        cases = {}
-        for i in range(8):
-            cases[i] = [
-                source.r.eq(color_bar[i][0]),
-                source.g.eq(color_bar[i][1]),
-                source.b.eq(color_bar[i][2])
-            ]
-        self.comb += Case(bar_x, cases)
 
 class BaseSoC(SoCCore):
     def __init__(self):
@@ -92,7 +61,7 @@ class BaseSoC(SoCCore):
         sys_clk_freq = 60e6
 
         led = platform.request("user_led_n", 0)
-        counter = Signal(26)
+        counter = Signal(29)
         self.comb += led.eq(counter[25])
         self.sync += counter.eq(counter + 1)
 
