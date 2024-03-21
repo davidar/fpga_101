@@ -29,7 +29,7 @@ class ColorBarsPattern(LiteXModule):
 
         # # #
 
-        fcount = Signal(8)
+        self.fcount = Signal(8)
 
         enable = Signal()
         self.specials += MultiReg(self.enable, enable)
@@ -39,7 +39,7 @@ class ColorBarsPattern(LiteXModule):
         self.fsm = fsm
         self.comb += fsm.reset.eq(~self.enable)
         fsm.act("IDLE",
-            NextValue(fcount, 0),
+            NextValue(self.fcount, 0),
             vtg_sink.ready.eq(1),
             If(vtg_sink.valid & vtg_sink.first & (vtg_sink.hcount == 0) & (vtg_sink.vcount == 0),
                 vtg_sink.ready.eq(0),
@@ -49,15 +49,15 @@ class ColorBarsPattern(LiteXModule):
         fsm.act("RUN",
             vtg_sink.connect(source, keep={"valid", "ready", "last", "de", "hsync", "vsync"}),
             If(vtg_sink.ready & (vtg_sink.hcount == 0) & (vtg_sink.vcount == 0),
-                NextValue(fcount, fcount + 1),
+                NextValue(self.fcount, self.fcount + 1),
             ),
         )
 
-        # Data Path.
+    def main_image(self):
         self.comb += [
-            source.r.eq(fcount + vtg_sink.hcount[3:11]),
-            source.g.eq(fcount + vtg_sink.vcount[3:11] + 160),
-            source.b.eq(fcount + vtg_sink.hcount[3:11] + 320),
+            self.source.r.eq(self.fcount + self.vtg_sink.hcount[3:11]),
+            self.source.g.eq(self.fcount + self.vtg_sink.vcount[3:11] + 160),
+            self.source.b.eq(self.fcount + self.vtg_sink.hcount[3:11] + 320),
         ]
 
 class BaseSoC(SoCCore):
@@ -87,6 +87,7 @@ class BaseSoC(SoCCore):
 
         # ColorsBars Pattern.
         video_colorbars = ColorBarsPattern()
+        video_colorbars.main_image()
         video_colorbars = ClockDomainsRenamer("hdmi")(video_colorbars)
         self.add_module("video_colorbars", video_colorbars)
 
