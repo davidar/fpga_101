@@ -54,37 +54,39 @@ class ColorBarsPattern(LiteXModule):
         )
 
     def main_image(self):
-        x = Signal((16, True))
-        y = Signal((16, True))
-        u = Signal((16, True))
-        v = Signal((16, True))
-        u2 = Signal((16, True))
-        v2 = Signal((16, True))
-        h = Signal((16, True))
-        t = Signal((16, True))
-        p = Signal((16, True))
-        q = Signal((16, True))
-        w0 = Signal((16, True))
-        R0 = Signal((16, True))
-        o = Signal((16, True))
-        R1 = Signal((16, True))
-        B1 = Signal((16, True))
-        w1 = Signal((16, True))
-        r = Signal((16, True))
-        d = Signal((16, True))
-        R2 = Signal((16, True))
-        B2 = Signal((16, True))
-        p1 = Signal((16, True))
-        c = Signal((16, True))
-        o1 = Signal((16, True))
-        R3 = Signal((16, True))
-        B3 = Signal((16, True))
-        c1 = Signal((16, True))
-        Ro = Signal((16, True))
-        Bo = Signal((16, True))
-        Rm = Signal((16, True))
-        Bm = Signal((16, True))
-        Go = Signal((16, True))
+        x = Signal((32, True))
+        y = Signal((32, True))
+        u = Signal((32, True))
+        v = Signal((32, True))
+        u2 = Signal((32, True))
+        v2 = Signal((32, True))
+        h = Signal((32, True))
+        t = Signal((32, True))
+        p = Signal((32, True))
+        q = Signal((32, True))
+        w0 = Signal((32, True))
+        R0 = Signal((32, True))
+        B0 = Signal((32, True))
+        o = Signal((32, True))
+        R1 = Signal((32, True))
+        B1 = Signal((32, True))
+        w1 = Signal((32, True))
+        r = Signal((32, True))
+        d = Signal((32, True))
+        R2 = Signal((32, True))
+        B2 = Signal((32, True))
+        p1 = Signal((32, True))
+        c = Signal((32, True))
+        o1 = Signal((32, True))
+        o2 = Signal((32, True))
+        R3 = Signal((32, True))
+        B3 = Signal((32, True))
+        c1 = Signal((32, True))
+        Ro = Signal((32, True))
+        Bo = Signal((32, True))
+        Rm = Signal((32, True))
+        Bm = Signal((32, True))
+        Go = Signal((32, True))
         self.comb += [
             x.eq(self.vtg_sink.hcount[3:]),
             y.eq(self.vtg_sink.vcount[3:]),
@@ -93,7 +95,7 @@ class ColorBarsPattern(LiteXModule):
             u2.eq(u * u),
             v2.eq(v * v),
             h.eq(u2 + v2),
-            If(h < 200,
+            If(h < 200,  # sphere
                 t.eq(5200 + h*8),
                 p.eq((t*u)>>7),
                 q.eq((t*v)>>7),
@@ -103,13 +105,14 @@ class ColorBarsPattern(LiteXModule):
                 If(w0 > 0,
                     R0.eq(420 + w0*w0)
                 ).Else(
-                    R0.eq(420)
+                    R0.eq(420),
                 ),
+                B0.eq(520),
                 
                 # sky light / ambient occlusion
                 o.eq(q + 900),
                 R1.eq((R0*o)>>12),
-                B1.eq((520*o)>>12),
+                B1.eq((B0*o)>>12),
 
                 # sun/key light
                 If(p > -q,
@@ -120,7 +123,7 @@ class ColorBarsPattern(LiteXModule):
                     Ro.eq(R1),
                     Bo.eq(B1),
                 )
-            ).Elif(v < 0,
+            ).Elif(v < 0,  # ground
                 R2.eq(150 + 2*v),
                 B2.eq(50),
                 
@@ -130,9 +133,9 @@ class ColorBarsPattern(LiteXModule):
                 # sky light / ambient occlusion
                 If(c > 1200,
                     o1.eq((25*c)>>3),
-                    o1.eq((c*(7840-o1)>>9) - 8560),
-                    R3.eq((R2*o1)>>10),
-                    B3.eq((B2*o1)>>10),
+                    o2.eq((c*(7840-o1)>>9) - 8560),
+                    R3.eq((R2*o2)>>10),
+                    B3.eq((B2*o2)>>10),
                 ).Else(
                     R3.eq(R2),
                     B3.eq(B2),
@@ -147,7 +150,7 @@ class ColorBarsPattern(LiteXModule):
                     Ro.eq(R3),
                 ),
                 Bo.eq(B3),
-            ).Else(
+            ).Else(  # sky
                 c1.eq(x + 4*y),
                 Ro.eq(132 + c1),
                 Bo.eq(192 + c1),
