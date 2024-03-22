@@ -54,10 +54,100 @@ class ColorBarsPattern(LiteXModule):
         )
 
     def main_image(self):
+        x = Signal((16, True))
+        y = Signal((16, True))
+        u = Signal((16, True))
+        v = Signal((16, True))
+        u2 = Signal((16, True))
+        v2 = Signal((16, True))
+        h = Signal((16, True))
+        t = Signal((16, True))
+        p = Signal((16, True))
+        q = Signal((16, True))
+        w0 = Signal((16, True))
+        R0 = Signal((16, True))
+        o = Signal((16, True))
+        R1 = Signal((16, True))
+        B1 = Signal((16, True))
+        w1 = Signal((16, True))
+        r = Signal((16, True))
+        d = Signal((16, True))
+        R2 = Signal((16, True))
+        B2 = Signal((16, True))
+        p1 = Signal((16, True))
+        c = Signal((16, True))
+        o1 = Signal((16, True))
+        R3 = Signal((16, True))
+        B3 = Signal((16, True))
+        c1 = Signal((16, True))
         self.comb += [
-            self.source.r.eq(self.fcount + self.vtg_sink.hcount[3:11]),
-            self.source.g.eq(self.fcount + self.vtg_sink.vcount[3:11] + 160),
-            self.source.b.eq(self.fcount + self.vtg_sink.hcount[3:11] + 320),
+            x.eq(self.vtg_sink.hcount[3:]),
+            y.eq(self.vtg_sink.vcount[3:]),
+            u.eq(x - 36),
+            v.eq(18 - y),
+            u2.eq(u * u),
+            v2.eq(v * v),
+            h.eq(u2 + v2),
+            If(h < 200,
+                t.eq(5200 + h*8),
+                p.eq((t*u)>>7),
+                q.eq((t*v)>>7),
+                
+                # bounce light
+                w0.eq(18 + (((p*5-q*13))>>9)),
+                If(w0 > 0,
+                    R0.eq(420 + w0*w0)
+                ).Else(
+                    R0.eq(420)
+                ),
+                
+                # sky light / ambient occlusion
+                o.eq(q + 900),
+                R1.eq((R0*o)>>12),
+                B1.eq((520*o)>>12),
+
+                # sun/key light
+                If(p > -q,
+                    w1.eq((p+q)>>3),
+                    self.source.r.eq(R1 + w1),
+                    self.source.b.eq(B1 + w1),
+                ).Else(
+                    self.source.r.eq(R1),
+                    self.source.b.eq(B1),
+                )
+            ).Elif(v < 0,
+                R2.eq(150 + 2*v),
+                B2.eq(50),
+                
+                p1.eq(h + 8*v2),
+                c.eq(240*(-v) - p1),
+
+                # sky light / ambient occlusion
+                If(c > 1200,
+                    o1.eq((25*c)>>3),
+                    o1.eq((c*(7840-o1)>>9) - 8560),
+                    R3.eq((R2*o1)>>10),
+                    B3.eq((B2*o1)>>10),
+                ).Else(
+                    R3.eq(R2),
+                    B3.eq(B2),
+                ),
+
+                # sun/key light with soft shadow
+                r.eq(c + u*v),
+                d.eq(3200 - h - 2*r),
+                If(d > 0,
+                    self.source.r.eq(R3 + d),
+                ).Else(
+                    self.source.r.eq(R3),
+                ),
+                self.source.b.eq(B3),
+            ).Else(
+                c1.eq(x + 4*y),
+                self.source.r.eq(132 + c1),
+                self.source.b.eq(192 + c1),
+            ),
+            # TODO
         ]
 
 class BaseSoC(SoCCore):
