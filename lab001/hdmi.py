@@ -80,6 +80,11 @@ class ColorBarsPattern(LiteXModule):
         R3 = Signal((16, True))
         B3 = Signal((16, True))
         c1 = Signal((16, True))
+        Ro = Signal((16, True))
+        Bo = Signal((16, True))
+        Rm = Signal((16, True))
+        Bm = Signal((16, True))
+        Go = Signal((16, True))
         self.comb += [
             x.eq(self.vtg_sink.hcount[3:]),
             y.eq(self.vtg_sink.vcount[3:]),
@@ -109,11 +114,11 @@ class ColorBarsPattern(LiteXModule):
                 # sun/key light
                 If(p > -q,
                     w1.eq((p+q)>>3),
-                    self.source.r.eq(R1 + w1),
-                    self.source.b.eq(B1 + w1),
+                    Ro.eq(R1 + w1),
+                    Bo.eq(B1 + w1),
                 ).Else(
-                    self.source.r.eq(R1),
-                    self.source.b.eq(B1),
+                    Ro.eq(R1),
+                    Bo.eq(B1),
                 )
             ).Elif(v < 0,
                 R2.eq(150 + 2*v),
@@ -137,17 +142,30 @@ class ColorBarsPattern(LiteXModule):
                 r.eq(c + u*v),
                 d.eq(3200 - h - 2*r),
                 If(d > 0,
-                    self.source.r.eq(R3 + d),
+                    Ro.eq(R3 + d),
                 ).Else(
-                    self.source.r.eq(R3),
+                    Ro.eq(R3),
                 ),
-                self.source.b.eq(B3),
+                Bo.eq(B3),
             ).Else(
                 c1.eq(x + 4*y),
-                self.source.r.eq(132 + c1),
-                self.source.b.eq(192 + c1),
+                Ro.eq(132 + c1),
+                Bo.eq(192 + c1),
             ),
-            # TODO
+            If(Ro > 255,
+                Rm.eq(255)
+            ).Else(
+                Rm.eq(Ro)
+            ),
+            If(Bo > 255,
+                Bm.eq(255)
+            ).Else(
+                Bm.eq(Bo)
+            ),
+            Go.eq((Rm*11 + 5*Bm)>>4),
+            self.source.r.eq(Rm[:8]),
+            self.source.g.eq(Go[:8]),
+            self.source.b.eq(Bm[:8]),
         ]
 
 class BaseSoC(SoCCore):
