@@ -174,8 +174,8 @@ class ColorBarsPattern(LiteXModule):
 class BaseSoC(SoCCore):
     def __init__(self):
         platform = colorlight_i5.Platform("i9", "7.2")
-        video_timing = "800x600@60Hz"
-        sys_clk_freq = 60e6
+        video_timing = "640x480@60Hz"
+        sys_clk_freq = 25e6
 
         led = platform.request("user_led_n", 0)
         counter = Signal(26)
@@ -184,7 +184,7 @@ class BaseSoC(SoCCore):
 
         self.crg = _CRG(platform, sys_clk_freq,
             with_video_pll   = True,
-            pix_clk          = video_timings[video_timing]["pix_clk"]
+            pix_clk          = 25e6 # video_timings[video_timing]["pix_clk"]
         )
 
         SoCCore.__init__(self, platform, int(sys_clk_freq), ident="LiteX SoC on Colorlight i9", cpu_type=None)
