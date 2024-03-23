@@ -88,8 +88,8 @@ class ColorBarsPattern(LiteXModule):
         Bm = Signal((32, True))
         Go = Signal((32, True))
         self.comb += [
-            x.eq(self.vtg_sink.hcount[3:]),
-            y.eq(self.vtg_sink.vcount[3:]),
+            x.eq(self.vtg_sink.hcount[3:] - 5),
+            y.eq(self.vtg_sink.vcount[3:] - 10),
             u.eq(x - 36),
             v.eq(18 - y),
             u2.eq(u * u),
