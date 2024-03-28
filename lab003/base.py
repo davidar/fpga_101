@@ -3,19 +3,17 @@
 from migen import *
 
 from litex.build.generic_platform import *
-from litex.build.xilinx import XilinxPlatform
 
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 from litex.soc.cores.uart import UARTWishboneBridge
-from litex.soc.cores import dna, xadc
-from litex.soc.cores.spi import SPIMaster
+from litex.soc.cores import gpio
 
 from litex_boards.platforms import colorlight_i5
 from litex_boards.targets.colorlight_i5 import _CRG
 
-from ios import Led, RGBLed, Button, Switch
-from display import SevenSegmentDisplay
+class Led(gpio.GPIOOut):
+    pass
 
 # Design -------------------------------------------------------------------------------------------
 
@@ -36,7 +34,7 @@ class BaseSoC(SoCMini):
 
         # No CPU, use Serial to control Wishbone bus
         self.submodules.serial_bridge = UARTWishboneBridge(platform.request("serial"), sys_clk_freq)
-        self.add_wb_master(self.serial_bridge.wishbone)
+        self.bus.add_master(master=self.serial_bridge.wishbone)
 
         # Led
         user_leds = Cat(*[platform.request("user_led_n", i) for i in range(1)])
